@@ -1,0 +1,478 @@
+
+    Capstone 4: Unstrucured Learning with Recommendation System for
+    Musical Artistis using Last.fm.¶
+    <#Capstone-4:-Unstrucured-Learning-with-Recommendation-System-for-Musical-Artistis-using-Last.fm.>
+
+
+      Last.fm website, http://www.lastfm.com <http://www.lastfm.com/>¶
+      <#Last.fm-website,-http://www.lastfm.com>
+
+|@inproceedings{Cantador:RecSys2011,
+  author = {Cantador, Iv\'{a}n and Brusilovsky, Peter and Kuflik, Tsvi},
+  title = {2nd Workshop on Information Heterogeneity and Fusion in Recommender Systems (HetRec 2011)},
+  booktitle = {Proceedings of the 5th ACM conference on Recommender systems},
+  series = {RecSys 2011},
+  year = {2011},
+  location = {Chicago, IL, USA},
+  publisher = {ACM},
+  address = {New York, NY, USA},
+  keywords = {information heterogeneity, information integration, recommender systems},
+
+|
+
+}
+
+
+      Credits¶ <#Credits>
+
+This dataset was built by Ignacio Fernández-Tobías with the
+collaboration of Iván Cantador and Alejandro Bellogín, members of the
+Information Retrieval group at Universidad Autonoma de Madrid
+(http://ir.ii.uam.es <http://ir.ii.uam.es/>)
+
+
+      Contact¶ <#Contact>
+
+Iván Cantador, ivan [dot] cantador [at] uam [dot] es
+
+Why I chose this dataset:
+1) To stretch myself with a dataset that isn't frequently used, and
+where there are not a lot of recommender examples in contrast to a well
+known set such as MovieLens.
+
+2) Recommender systems are frequently used in business, and they are of
+interest to me.
+
+3) This is similar to capstone 4 suggestion, "Netflix wants to identify
+similar movies based on movie characteristics." Rather than just output
+content based recommendations, members in a similar cluster or group,
+built collaborative and content based filters to recommend an artist
+based on similarities in ratings.
+
+
+      Problem Statement:¶ <#Problem-Statement:>
+
+After prepocessing data and generating a rating score, identify optimal
+number of clusters and make artist recommendations based on
+collaborative and content based clustering.
+
+
+        Clustering: cluster user ratings in three genres.¶
+        <#Clustering:-cluster-user-ratings-in-three-genres.>
+
+A) K-Means
+B) Agglomorative
+C) GMM
+D) Dimension Reduction - UMAP
+
+
+        Recommendation Systems:¶ <#Recommendation-Systems:>
+
+A) Collaborative recommendation - Recommend artist based on artist
+listening to.
+B) Collaborative recommendation - Recommend artist based on similar users.
+C) Content recommendation - Recommend artist based on genre.
+
+In [1]:
+
+# HIGH LEVEL DATA PLAN
+
+# PREPROCESSING
+    # IMPORT DATA
+    # BASIC EDA
+    # MERGE DIFFERENT FILES INTO ONE DATAFRAME
+    # CREATE RANKING SYSTEM BASED ON USER LISTENS# 
+    # UNIFY TAGS BY HAVING MOST USED TAG FOR EACH ARTIST BE THE TAG FOR ARTIST
+
+# CLUSTERING 
+    # NORMALIZE
+    # KMEANS
+    # AGGLOMERATIVE CLUSTERING
+    # GMM
+    # DIMENSION REDUCTION - UMAP
+
+# RECOMMENDER SYSTEMS, COLLABORATIVE FILTERING, CONTENT FILTERING
+    #COLLABORATIVE 
+        # 1) RECOMMENDATION OF ARTIST BASED ON SIMILARITY TO OTHER ARTISTS
+        # 2) RECOMMENDATION OF ARTIST BASED ON SIMILARITY TO OTHER USERS
+    # CONTENT BASED
+        # GENRE AS CONTENT CHARACTERISTIC. RECOMMEND MOST POPULAR (HIGHEST RATED) IN GENRE
+
+In [50]:
+
+# PRIMARY DATA FRAME CONTENT AFTER PREPROCESSING
+df.head()
+
+Out[50]:
+	userID 	artistID 	tagID_new 	name 	tagValue 	weight 	user_artistID
+tagCnt 	tagRank
+24 	4 	157 	24 	Michael Jackson 	pop 	732.0 	4_157 	2316 	1
+31 	4 	171 	73 	Stereophonics 	rock 	359.0 	4_171 	1281 	2
+35 	4 	180 	24 	Roxette 	pop 	256.0 	4_180 	2316 	1
+38 	4 	184 	24 	James Blunt 	pop 	247.0 	4_184 	2316 	1
+39 	4 	185 	73 	Reamonn 	rock 	240.0 	4_185 	1281 	2
+
+In [51]:
+
+# ANOTHER SIGNIFICANT DATA FRAME WITH % RANKINGS NORMALIZED BETWEEN 0 AND 1 INCLUSIVE
+# WEIGHT IS NUMBER OF LISTENING EVENTS, % IS PERCENT OF GENRE TO TOTAL
+df_user_genre.head()
+
+Out[51]:
+	userID 	cum_weight 	cum_rank 	pop_% 	rock_% 	indie_% 	pop 	rock 	indie
+0 	4 	2031.0 	0.0 	0.705071 	0.294929 	0.0 	1432.0 	599.0 	0.0
+1 	5 	1022.0 	0.0 	0.000000 	0.000000 	1.0 	0.0 	0.0 	1022.0
+2 	7 	43864.0 	0.0 	1.000000 	0.000000 	0.0 	43864.0 	0.0 	0.0
+3 	8 	6693.0 	0.0 	1.000000 	0.000000 	0.0 	6693.0 	0.0 	0.0
+4 	9 	1149.0 	0.0 	0.000000 	1.000000 	0.0 	0.0 	1149.0 	0.0
+
+In [104]:
+
+# OPTIMAL CLUSTER # -> ELBOW METHOD -> WITHIN CLUSTER SUM OF SQUARES (WCSS)
+wcss = []
+for i in range(1,11):
+    kmeans = KMeans(n_clusters = i, init = 'random', max_iter = 300,
+                    n_init = 10, random_state = 42)
+    kmeans.fit(X)
+    wcss.append(kmeans.inertia_)
+plt.plot(range(1,11), wcss)
+plt.title('Elbow Method')
+plt.xlabel('# Clusters')
+plt.ylabel('WCSS')
+plt.show()
+
+# 3 CLUSTERS ARE OPTIMAL
+
+In [59]:
+
+pred_2 = KMeans(n_clusters=2, random_state=42).fit_predict(X)
+pred_3 = KMeans(n_clusters=3, random_state=42).fit_predict(X)
+pred_4 = KMeans(n_clusters=4, random_state=42).fit_predict(X)
+pred_5 = KMeans(n_clusters=5, random_state=42).fit_predict(X)
+pred_6 = KMeans(n_clusters=6, random_state=42).fit_predict(X)
+
+print("Silhouette score for two   cluster k-means:\t {}".format(
+    metrics.silhouette_score(X, pred_2, metric='euclidean')))
+print("Silhouette score for three cluster k-means:\t {}".format(
+    metrics.silhouette_score(X, pred_3, metric='euclidean')))
+print("Silhouette score for four  cluster k-means:\t {}".format(
+    metrics.silhouette_score(X, pred_4, metric='euclidean')))
+print("Silhouette score for five  cluster k-means:\t {}".format(
+    metrics.silhouette_score(X, pred_5, metric='euclidean')))
+
+# SILHOUETTE INCREASES WITH CLUSTERS
+
+Silhouette score for two   cluster k-means:	 0.6674554380538127
+Silhouette score for three cluster k-means:	 0.7588132354576601
+Silhouette score for four  cluster k-means:	 0.7594129471320296
+Silhouette score for five  cluster k-means:	 0.7641331442434847
+
+In [61]:
+
+print("Silhoutte - metric = euclidean, linkage = complete :\t {}"
+      .format(metrics.silhouette_score(X, clusters1, metric='euclidean')))
+
+print("Silhoutte - metric = euclidean, linkage = average:\t {}"
+      .format(metrics.silhouette_score(X, clusters2, metric='euclidean')))
+
+print("Silhoutte - metric = euclidean, linkage = ward:\t\t {}"
+      .format(metrics.silhouette_score(X, clusters3, metric='euclidean')))
+
+print("Silhoutte - metric = manhattan, linkage = complete:\t {}"
+      .format(metrics.silhouette_score(X, clusters4, metric='manhattan')))
+
+print("Silhoutte - metric = manhattan, linkage = average:\t {}"
+      .format(metrics.silhouette_score(X, clusters5, metric='manhattan')))
+
+print("Silhoutte - metric = cosine, linkage = complete:\t {}"
+      .format(metrics.silhouette_score(X, clusters4, metric='cosine')))
+
+print("Silhoutte - metric = cosine, linkage = average:\t\t {}"
+      .format(metrics.silhouette_score(X, clusters5, metric='cosine')))
+
+# EUCLIDEAN BEST DISTANCE, WARD BEST LINKAGE
+
+Silhoutte - metric = euclidean, linkage = complete :	 0.7404236065016446
+Silhoutte - metric = euclidean, linkage = average:	 0.7509464111817193
+Silhoutte - metric = euclidean, linkage = ward:		 0.751956918996623
+Silhoutte - metric = manhattan, linkage = complete:	 0.7263976602930112
+Silhoutte - metric = manhattan, linkage = average:	 0.7191474597912193
+Silhoutte - metric = cosine, linkage = complete:	 0.6159459940195519
+Silhoutte - metric = cosine, linkage = average:		 0.5469747916331541
+
+In [62]:
+
+plt.figure(figsize=(20,10))
+dendrogram(linkage(X, method='ward'))
+plt.show()
+# TWO CLUSTERS ARE CHOSEN, BUT THREE ARE NOTICEABLE
+
+
+        Summary¶ <#Summary>
+
+Three clusters are optimal.
+K-Means, the best performing clustering algorithm based on siloutette.
+K-Means, chose three clusters with the elbow method (WCSS)
+Agglomerative, Ward best performing. Chose two clusters, but three in view.
+GMM, chose three clusters, best performance came from tied covariance
+type (uniform shape).
+
+In [65]:
+
+# UMAP DIMENSION REDUCTION USING CORRELATION
+plt.figure(figsize=(10,5))
+plt.scatter(umap_results[:, 0], umap_results[:, 1])
+plt.xticks([])
+plt.yticks([])
+plt.axis('off')
+plt.show()
+# THREE TO FIVE CLUSTERS ARE NOTICEABLE. CHANGES WITH EACH RUN.
+
+In [69]:
+
+# UMAP DIMENSION REDUCTION USING EUCLIDEAN DISTANCE
+plt.figure(figsize=(10,5))
+plt.scatter(umap_results[:, 0], umap_results[:, 1])
+plt.xticks([])
+plt.yticks([])
+plt.axis('off')
+plt.show()
+
+# AT LEAST FOUR CLUSTERS ARE NOTICEABLE.
+
+
+      Summary - UMAP dimension reduction¶
+      <#Summary---UMAP-dimension-reduction>
+
+Appears to be three to four+ clusters.
+Correlation has most uniform circular output, best performer.
+Euclidean and cosine distance have linear like output.
+Correlation better than euclidean and cosine with three clusters.
+UMAP output changes with each run.
+
+
+      Summary - Clustering and dimension reduction¶
+      <#Summary---Clustering-and-dimension-reduction>
+
+Three clusters appear to be the appropriate number of clusters as seen
+by the elbow method with K-Means and the other clustering types with the
+exception of possibly Agglormative.
+
+UMAP speaks to three to four as the optimal cluster number.
+
+In [70]:
+
+# CHART 3 CLUSTERS 
+kmeans = KMeans(n_clusters= 3, init= 'random', max_iter=300, n_init=10,
+                random_state=42)
+y_kmeans = kmeans.fit_predict(X)
+clusters = set(y_kmeans)
+colors = ['red', 'blue', 'magenta','grey']
+labels = ['Cluster {}'.format(i+1) for i in set(y_kmeans)]
+for clust, color, labels in zip(clusters, colors, labels):
+    plt.scatter(X[y_kmeans == clust, 0], X[y_kmeans == clust, 1], 
+                s=100, c = color, label = labels, edgecolors='black')
+centroids = kmeans.cluster_centers_
+plt.scatter(centroids[:, 0], centroids[:, 1], s = 200, c = 'yellow', 
+            label = 'Centroids', edgecolors='black', marker='s')
+plt.title('Genre: Cumulative Scoring by Listener')
+plt.xlabel('% pop')
+plt.ylabel('% rock')
+plt.legend()
+plt.show()
+
+In [89]:
+
+# SIMILARITY MATRIX BASED ON EUCLIDEAN DISTANCE
+# CHOSE EUCLIDEAN BECAUSE BEST PERFORMING CLUSTERING ALGORITHIMS BASED ON EUCLIDEAN
+df_item_sim_scr.head()
+
+Out[89]:
+name 	3 Doors Down 	30 Seconds to Mars 	ABBA 	Air Traffic 	Arcade Fire
+Ashlee Simpson 	Audioslave 	Avril Lavigne 	Babasónicos 	Band of
+Horses 	... 	Vampire Weekend 	We Are Scientists 	Weezer 	Wilco
+Wolfmother 	Xiu Xiu 	Yo La Tengo 	Zoé 	of Montreal 	Мои Ракеты Вверх
+name 																					
+3 Doors Down 	1 	-1.64575 	-1 	-1 	-4.19615 	-1 	-0.414214 	-1.44949
+-1 	-2 	... 	-2.31662 	-1.23607 	-1.82843 	-1.23607 	-1 	-1 	-1.23607
+-1.44949 	-2.4641 	-1.23607
+30 Seconds to Mars 	-1.64575 	1 	-1.64575 	-1.64575 	-4.2915 	-1.64575
+-1.64575 	-2 	-1.64575 	-2.4641 	... 	-2.74166 	-1.82843 	-2.31662
+-1.82843 	-1.64575 	-1.64575 	-1.82843 	-2 	-2.87298 	-1.82843
+ABBA 	-1 	-1.64575 	1 	-1 	-4.19615 	-1 	-1 	-1.44949 	-1 	-2 	...
+-2.31662 	-1.23607 	-1.82843 	-1.23607 	-1 	-1 	-1.23607 	-1.44949
+-2.4641 	-1.23607
+Air Traffic 	-1 	-1.64575 	-1 	1 	-4.19615 	-1 	-1 	-1.44949 	-1 	-2
+... 	-2.31662 	-1.23607 	-1.82843 	-1.23607 	-1 	-1 	-1.23607
+-1.44949 	-2.4641 	-1.23607
+Arcade Fire 	-4.19615 	-4.2915 	-4.19615 	-4.19615 	1 	-4.19615
+-4.19615 	-4.38516 	-4.19615 	-4.65685 	... 	-4.65685 	-4.09902
+-4.19615 	-3.89898 	-4 	-4 	-4.2915 	-4.38516 	-4.56776 	-4.2915
+
+5 rows × 145 columns
+
+In [94]:
+
+# SIMILAR ARTISTS BASED AS COMPARED TO CURRENT ARTIST LISTENING TO
+df_item_sim.iloc[:5,1:5]
+
+Out[94]:
+	2 	3 	4 	5
+name 				
+3 Doors Down 	Audioslave 	The Perishers 	Peter Bjorn and John 	The
+All-American Rejects
+30 Seconds to Mars 	Linkin Park 	Julian Casablancas 	Evanescence 	My
+Chemical Romance
+ABBA 	George Michael 	Mika 	HIM 	Garbage
+Air Traffic 	Orson 	The Subways 	Tahiti 80 	The Wombats
+Arcade Fire 	Spoon 	The New Pornographers 	Grizzly Bear 	Wilco
+
+In [101]:
+
+# GIVE RECOMMENDATIONS FOR SIMILAR USERS
+# CAN FROM HERE IDENTIFY ARTISTS THAT SIMILAR USERS LIKE, BUT CURRENT USER HASN'T LISTENED TO
+data_recommend1.iloc[0:10,:5]
+
+Out[101]:
+	user 	1 	2 	3 	4
+0 	5 	Broken Social Scene 	Final Fantasy 	Interpol 	Yo La Tengo
+1 	10 	Faith No More 	Jet 	Interpol 	Incubus
+2 	27 	Faith No More 	Jet 	Interpol 	Incubus
+3 	38 	Faith No More 	Jet 	Interpol 	Incubus
+4 	50 	Faith No More 	Jet 	Interpol 	Incubus
+5 	62 	Garbage 	Faith No More 	The Veronicas 	Paramore
+6 	73 	The All-American Rejects 	Foals 	The Kooks 	Florence + the Machine
+7 	77 	Faith No More 	Jet 	Interpol 	Incubus
+8 	88 	Bloc Party 	Good Shoes 	Jet 	Interpol
+9 	97 	Two Door Cinema Club 	George Michael 	Interpol 	Incubus
+
+In [102]:
+
+# CONTENT BASED FILTER
+# INPUT TAG (CONTENT), EITHER ROCK, POP OR INDIE, GET TOP FIVE MOST LISTENED TO ARTISTS
+#tag_of_interest = 'indie'
+#tag_of_interest = 'rock'
+tag_of_interest = 'pop'
+df[df['tagValue']==tag_of_interest].groupby('name')['weight'].sum().sort_values(ascending=False).head()
+
+Out[102]:
+
+name
+Britney Spears        1664992.0
+Christina Aguilera     677708.0
+Lady Gaga              564453.0
+Shakira                474315.0
+Madonna                432089.0
+Name: weight, dtype: float64
+
+In [103]:
+
+# CONTENT BASED FILTER
+# GET FIVE USERS CLOSEST TO CENTROID IN A CLUSTER
+# INPUT CLUSTER NUMBER
+cluster_num = 1
+df_user_genre.sort_values(by=[cluster_num], ascending=True).head()
+#top5['userID']
+
+Out[103]:
+	userID 	cum_weight 	cum_rank 	pop_% 	rock_% 	indie_% 	pop 	rock
+indie 	cl_label 	0 	1 	2
+230 	430 	10125.0 	0.000966 	0.073383 	0.875556 	0.051062 	743.0
+8865.0 	517.0 	1 	1.190422 	0.026048 	0.777697
+467 	904 	3300.0 	0.000315 	0.012727 	0.877879 	0.109394 	42.0 	2897.0
+361.0 	1 	1.236232 	0.039377 	0.779899
+110 	203 	800.0 	0.000076 	0.083750 	0.916250 	0.000000 	67.0 	733.0
+0.0 	1 	1.211872 	0.043266 	0.818828
+294 	545 	26408.0 	0.002521 	0.097736 	0.888632 	0.013632 	2581.0
+23467.0 	360.0 	1 	1.182347 	0.047048 	0.792117
+205 	388 	26909.0 	0.002568 	0.061764 	0.938236 	0.000000 	1662.0
+25247.0 	0.0 	1 	1.242962 	0.051110 	0.839968
+
+
+      SUMMARY¶ <#SUMMARY>
+
+
+        Q: A specified research question your model addresses.¶
+        <#Q:-A-specified-research-question-your-model-addresses.>
+
+    What are the optimal number of clusters given genre inputs? This
+    analysis identifies three as the optimal number of clusters when
+    comparing rock vs pop genres. Meaning users either:
+    1) really like rock and not really pop
+    2) at best sort of likes rock, at best sort of likes pop
+    3) really like pop, but not really rock 
+
+
+        Q: How you chose your model specification and what alternatives
+        you compared it to.¶
+        <#Q:-How-you-chose-your-model-specification-and-what-alternatives-you-compared-it-to.>
+
+    Chose K-Means based on WCSS, the elbow method. Used sillouette
+    scores for other clustering algorithms, including GMM and
+    Agglomerative Clustering. 
+
+
+        Q: Quantifiable results based on the research you’ve conducted.¶
+        <#Q:-Quantifiable-results-based-on-the-research-you’ve-conducted.>
+
+    Results favored euclidean distance in siloutette scores.
+    Siloutette scores kept going up with cluster number.
+    Elbow method rate of change appears to have decreased at three and
+    started to blatten at 4. 
+
+
+        Q: The visuals you chose and what they represent for your
+        research.¶
+        <#Q:-The-visuals-you-chose-and-what-they-represent-for-your-research.>
+
+    Chose cluster visuals for unstructured data exploration and rational
+    behind cluster choice.
+    Chose similarity matrix and output for recommedation engine to show
+    inner workings and end result. 
+
+
+        Your end-user and the value your project provides to them.¶
+        <#Your-end-user-and-the-value-your-project-provides-to-them.>
+
+    End user is both the corporation implementing the algorithm and the
+    user using the service. By provideing a quality recommendation, this
+    improves overall experience for the user, as well as customer
+    retention for the company. Company benefits from clustering by
+    better understanding the user. Could be used to understand how to
+    advertise, cross market opportunities for artists and many more. 
+
+
+        The practical uses of your model for an audience of interest.¶
+        <#The-practical-uses-of-your-model-for-an-audience-of-interest.>
+
+    Find new artists haven't listened to before that are relevant and
+    interesting.
+    Break apart groupings of users to better understand how behavior is
+    broken down outside of traditional labels. 
+
+
+        Potential problems or bias, any weak points or shortcomings of
+        your model.¶
+        <#Potential-problems-or-bias,-any-weak-points-or-shortcomings-of-your-model.>
+
+    Selection bias. Model uses user tags. Not all users enter tags.
+    Classification, users don't have a structured approach to tagging.
+    Weights based on user listening preferences may overlook artists the
+    user likes, but doesn't listen to on the platform for whatever reason.
+    Approach is simplistic, and not nuanced. 
+
+
+        Additional research proposal¶ <#Additional-research-proposal>
+
+    Compare to KNN recommendation system.
+    Explore how to rate the performance of recommendation.
+    Explore appropriate distance metrics for clustering this type of
+    data. Change rank from cumulative to decile rank based on user
+    weighting. Scale, so can perform analysis using all genres. 
+
+In [ ]:
+
+ 
+
+Capstone 4: Unstrucured Learning with Recommendation System for Musical
+Artistis using Last.fm.
